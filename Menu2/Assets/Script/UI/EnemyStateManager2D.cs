@@ -134,7 +134,15 @@ public class EnemyStateManager_2D : MonoBehaviour
         if (attackTimer >= coolDownAttacks)
         {
             Debug.Log("El enemigo ataca");
-            Player.GetComponent<PlayerHealth>().TakeDamage(1f);
+
+            // CAMBIO AQUÍ: Ahora buscamos PlayerMovement que es donde quedó la vida
+            PlayerMovement playerScript = Player.GetComponent<PlayerMovement>();
+
+            if (playerScript != null)
+            {
+                playerScript.TakeDamage(1f); // Esto activará el color rojo y restará vida
+            }
+
             attackTimer = 0;
         }
     }

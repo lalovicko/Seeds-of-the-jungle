@@ -1,6 +1,7 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 using TMPro;
+using System.Collections;
 
 public class UIStatemanager : MonoBehaviour
 {
@@ -13,91 +14,76 @@ public class UIStatemanager : MonoBehaviour
         Dead
     }
 
-    [Header("Paneles")]
-
+    [Header("Paneles (Arrastra tus GameObjects aquí)")]
     [SerializeField] private GameObject Panel_Mainmenu;
     [SerializeField] private GameObject Panel_Options;
     [SerializeField] private GameObject Panel_Pause;
     [SerializeField] private GameObject Panel_HUD;
-    [SerializeField] private GameObject Panel_Dead; // Panel de Game Over
+    [SerializeField] private GameObject Panel_Dead;
 
-    [Header("Debug")]
-
+    [Header("Debug (Opcional)")]
     [SerializeField] private TextMeshProUGUI txtStateDebug;
 
     private UIState currentState;
 
     private void Start()
     {
+        // Al iniciar el juego, mandamos al Menú Principal
         ChangeState(UIState.MainMenu);
-    }
-
-    private void Update()
-    {
-        if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
-        {
-            // Solo permitir pausar si estamos jugando
-            if (currentState == UIState.HUD)
-            {
-                ChangeState(UIState.Pause);
-            }
-            else if (currentState == UIState.Pause)
-            {
-                ChangeState(UIState.HUD);
-            }
-        }
     }
 
     public void ChangeState(UIState nextState)
     {
         currentState = nextState;
 
-        // Apagar todos los paneles
+        // Apagar todos los paneles para que no se encimen
         if (Panel_Mainmenu != null) Panel_Mainmenu.SetActive(false);
         if (Panel_Options != null) Panel_Options.SetActive(false);
         if (Panel_Pause != null) Panel_Pause.SetActive(false);
         if (Panel_HUD != null) Panel_HUD.SetActive(false);
         if (Panel_Dead != null) Panel_Dead.SetActive(false);
 
-        // Tiempo normal por defecto
-        Time.timeScale = 1f;
+        // Control del tiempo (Pausa el juego en menús, corre en el HUD)
+        Time.timeScale = (currentState == UIState.HUD) ? 1f : 0f;
 
         switch (currentState)
         {
             case UIState.MainMenu:
                 if (Panel_Mainmenu != null) Panel_Mainmenu.SetActive(true);
-                Time.timeScale = 0f;
                 break;
 
             case UIState.Option:
                 if (Panel_Options != null) Panel_Options.SetActive(true);
-                Time.timeScale = 0f;
                 break;
 
             case UIState.Pause:
                 if (Panel_Pause != null) Panel_Pause.SetActive(true);
-                Time.timeScale = 0f;
                 break;
 
             case UIState.HUD:
                 if (Panel_HUD != null) Panel_HUD.SetActive(true);
-                Time.timeScale = 1f;
+                // Iniciamos el temporizador cuando el jugador empieza
+                FindObjectOfType<TimerManager>()?.StartTimer();
                 break;
 
             case UIState.Dead:
                 if (Panel_Dead != null) Panel_Dead.SetActive(true);
-                Time.timeScale = 0f;
+                // Iniciamos la espera de 2 segundos para reiniciar
+                StartCoroutine(WaitAndRestart());
                 break;
         }
 
-        // Texto de debug
-        if (txtStateDebug != null)
-        {
-            txtStateDebug.text = "Current State: " + currentState.ToString();
-        }
+        if (txtStateDebug != null) txtStateDebug.text = "State: " + currentState.ToString();
     }
 
-    // BOTONES UI
+    private IEnumerator WaitAndRestart()
+    {
+        // Espera 2 segundos reales (porque Time.timeScale está en 0)
+        yield return new WaitForSecondsRealtime(2f);
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+
+    // --- MÉTODOS PARA LOS BOTONES (On Click) ---
 
     public void OnclickButtonStart()
     {
@@ -126,13 +112,10 @@ public class UIStatemanager : MonoBehaviour
 
     public void OnclickButtonExit()
     {
-        if (Application.isEditor)
-        {
-            UnityEditor.EditorApplication.isPlaying = false;
-        }
-        else
-        {
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
             Application.Quit();
-        }
+#endif
     }
 }

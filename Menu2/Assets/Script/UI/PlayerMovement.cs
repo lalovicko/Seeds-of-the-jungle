@@ -1,21 +1,35 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using TMPro;
+using System.Collections;
 
 public class PlayerMovement : MonoBehaviour
 {
+    [Header("Configuración")]
     [SerializeField] private float moveSpeed = 5f;
+    [SerializeField] private float maxHealth = 10f;
+
+    [Header("Referencias UI (Opcional)")]
+    [SerializeField] private TextMeshProUGUI healthText;
+    [SerializeField] private TextMeshProUGUI scoreText;
 
     private Rigidbody2D rb;
     private Animator anim;
+    private SpriteRenderer spriteRenderer;
     private Vector2 moveInput;
+    private float currentHealth;
+    private int score = 0;
     private bool isDead = false;
 
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
         anim = GetComponent<Animator>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
 
-        // En top-down la gravedad debe ser 0
+        currentHealth = maxHealth;
+        UpdateUI();
+
         rb.gravityScale = 0f;
         rb.freezeRotation = true;
     }
@@ -23,13 +37,9 @@ public class PlayerMovement : MonoBehaviour
     void Update()
     {
         if (isDead) return;
-
         if (Keyboard.current == null) return;
 
-        // 1. Leer entradas
-        float moveX = 0f;
-        float moveY = 0f;
-
+        float moveX = 0f; float moveY = 0f;
         if (Keyboard.current.aKey.isPressed) moveX -= 1f;
         if (Keyboard.current.dKey.isPressed) moveX += 1f;
         if (Keyboard.current.wKey.isPressed) moveY += 1f;
@@ -37,54 +47,54 @@ public class PlayerMovement : MonoBehaviour
 
         moveInput = new Vector2(moveX, moveY).normalized;
 
-        // 2. Lógica de Animación (8 Direcciones)
         if (moveInput.magnitude > 0.1f)
         {
-            // Enviamos los valores al Blend Tree
             anim.SetFloat("moveX", moveInput.x);
             anim.SetFloat("moveY", moveInput.y);
             anim.SetBool("isWalking", true);
         }
-        else
-        {
-            // Al dejar de movernos, isWalking es falso pero 
-            // NO reseteamos moveX/moveY a cero para que el 
-            // dinosaurio se quede mirando en la última dirección.
-            anim.SetBool("isWalking", false);
-        }
+        else { anim.SetBool("isWalking", false); }
     }
 
     void FixedUpdate()
     {
-        if (isDead)
-        {
-            rb.linearVelocity = Vector2.zero;
-            return;
-        }
-
+        if (isDead) { rb.linearVelocity = Vector2.zero; return; }
         rb.linearVelocity = moveInput * moveSpeed;
     }
 
-    public void Die()
+    public void TakeDamage(float damage)
     {
         if (isDead) return;
-
-        isDead = true;
-        moveInput = Vector2.zero;
-        rb.linearVelocity = Vector2.zero;
-
-        anim.SetTrigger("isDead");
-        Debug.Log("Game Over: El dinosaurio ha caído.");
+        currentHealth -= damage;
+        UpdateUI();
+        StartCoroutine(FlashRed());
+        if (currentHealth <= 0) Die();
     }
-    // --- Añade estas variables al principio de tu script ---
-    private int score = 0;
 
-    // --- Añade este método al final de tu script (antes de la última llave) ---
     public void AddScore(int amount)
     {
         score += amount;
-        Debug.Log("Puntaje actual: " + score);
+        UpdateUI();
+    }
 
-        // Aquí podrías actualizar un texto de la interfaz (UI) más adelante
+    void UpdateUI()
+    {
+        if (healthText != null) healthText.text = "Vida: " + currentHealth;
+        if (scoreText != null) scoreText.text = "Puntos: " + score;
+    }
+
+    private IEnumerator FlashRed()
+    {
+        spriteRenderer.color = Color.red;
+        yield return new WaitForSeconds(0.15f);
+        spriteRenderer.color = Color.white;
+    }
+
+    void Die()
+    {
+        isDead = true;
+        anim.SetTrigger("isDead");
+        FindObjectOfType<UIStatemanager>()?.ChangeState(UIStatemanager.UIState.Dead);
+        FindObjectOfType<TimerManager>()?.StopTimer();
     }
 }
