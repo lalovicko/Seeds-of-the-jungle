@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using TMPro;
 
 public class PlayerMovement : MonoBehaviour
 {
@@ -62,7 +63,10 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
 
-        rb.linearVelocity = moveInput * moveSpeed;
+   
+        float speedMultiplier = Time.timeScale > 0 ? (1f / Time.timeScale) : 1f;
+
+        rb.linearVelocity = moveInput * (moveSpeed * speedMultiplier);
     }
 
     public void Die()
@@ -76,15 +80,23 @@ public class PlayerMovement : MonoBehaviour
         anim.SetTrigger("isDead");
         Debug.Log("Game Over: El dinosaurio ha caído.");
     }
-    // --- Añade estas variables al principio de tu script ---
+    [Header("UI de Puntaje")]
+    [SerializeField] private TextMeshProUGUI textoPuntaje; // Arrastra el texto aquí
     private int score = 0;
 
-    // --- Añade este método al final de tu script (antes de la última llave) ---
+    // ... (tu Awake, Update y FixedUpdate) ...
+
     public void AddScore(int amount)
     {
         score += amount;
-        Debug.Log("Puntaje actual: " + score);
+        ActualizarInterfaz();
+    }
 
-        // Aquí podrías actualizar un texto de la interfaz (UI) más adelante
+    private void ActualizarInterfaz()
+    {
+        if (textoPuntaje != null)
+        {
+            textoPuntaje.text = "Semillas: " + score;
+        }
     }
 }
